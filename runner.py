@@ -272,8 +272,6 @@ class Runner(Visitor):
                 id_ = self.visit(node.args, a) # vraca simbol
                 return len(id_.symbols) # string je niz ascii vrednost (velicina niza simbola) #? ovako je za c
         elif func == 'strcat':
-            # strcat(dest, src)
-            # strcat(dest, "raf")
             a, b = args[0], args[1]
             dest = self.get_symbol(a)
             values = []
@@ -289,7 +287,19 @@ class Runner(Visitor):
                 dest.symbols.put(i, dest.type_, None)
                 dest.symbols.get(i).value = v
                 i += 1
-        elif
+        elif func == 'ord':
+            a = args[0]
+            value = self.visit(node.args, a)
+            if isinstance(value, Symbol):
+                value = value.value # simbol
+            return ord(value)
+
+        elif func == 'chr':
+            a = args[0]
+            value = self.visit(node.args, a)
+            if isinstance(value, Symbol):
+                value = value.value # simbol
+            return chr(value)
         else:
             impl = self.global_[func] # uzima se funkcija iz globalnog scope-a (Symbol(naziv, tip, scope, parametri, blok))
             self.call_stack.append(func) # stavimo naziv u call stack 
@@ -403,13 +413,13 @@ class Runner(Visitor):
         pass
 
     def visit_Integer(self, parent, node):
-        return node.value
+        return int(node.value)
     
     def visit_Real(self, parent, node):
-        return node.value
+        return float(node.value)
 
     def visit_Boolean(self, parent, node):
-        return node.value
+        return bool(node.value)
 
     def visit_Char(self, parent, node):
         return node.value    # ord(node.value) #?vrv bez ord
