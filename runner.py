@@ -6,7 +6,7 @@ from astComponents import *
 import re
 
 
-# todo 4, 5, 7
+# todo 4
 
 # cita ast 
 class Runner(Visitor):
@@ -143,6 +143,7 @@ class Runner(Visitor):
         if isinstance(value, Symbol): # ako je sa desne strane promenljiva uzmem njenu vrednost (x = y)
             value = value.value
         id_.value = value 
+        return id_
 
  
     # scope = id(node) -> id nekog cvora(bloka)
@@ -168,16 +169,34 @@ class Runner(Visitor):
             cond = self.visit(node, node.cond)
 
     def visit_For(self, parent, node):
-        self.visit(node, node.init)
-        cond = self.visit(node, node.cond)
+        init = self.visit(node, node.init)
+        step = self.visit(node, node.step)
+        limit = self.visit(node, node.limit)
+        if isinstance(limit, Symbol):
+            limit = limit.value
+        #print(f'init: {init}, step: {step}, limit {limit}')
+        if step == -1: 
+            cond = init.value >= limit
+        else:
+            cond = init.value <= limit
         while cond:
             self.init_scope(node.block)
             self.visit(node, node.block)
             self.clear_scope(node.block)
-            self.visit(node, node.step)
-            cond = self.visit(node, node.cond)
+            init.value += step
+            if step == -1: 
+                cond = init.value >= limit
+            else:
+                cond = init.value <= limit
 
-    #todo visit_RepeatUntil(self, parent, node):
+    def visit_RepeatUntil(self, parent, node):
+        cond = self.visit(node, node.cond)
+        while True:
+            self.init_scope(node.block)
+            self.visit(node, node.block)
+            self.clear_scope(node.block)
+            if cond:
+                break
 
     def visit_FuncImpl(self, parent, node):
         id_ = self.get_symbol(node.id_) # mapira se cvor na simbol
@@ -233,7 +252,6 @@ class Runner(Visitor):
                         valueToRound = float(valueToRound.value)
                     idx += 3
                     decimals = int(args[idx].value)
-                    print(type(valueToRound).__name__, type(decimals).__name__)
                     format_ += str(round(valueToRound, decimals))
                     idx += 1
                 elif isinstance(args[idx], Id) or isinstance(args[idx], ArrayElem):
@@ -347,8 +365,11 @@ class Runner(Visitor):
         result = None # rezultat koji vracam iz bloka
         scope = id(node) # pravim blok (main funkcija)
         #fun = self.call_stack[-1]
+        main = Symbol('main', 'int', id(parent))
+        main.block = node.nodes
+        self.global_['main'] = main
         self.scope.append(scope)
-        self.call_stack.append(scope)
+        self.call_stack.append('main')
         self.init_scope(node) 
         # if len(self.local[scope]) > 5: # provera beskonacne rekurzije
         #     exit(0)
@@ -388,18 +409,21 @@ class Runner(Visitor):
     # fib(5) -> fib(4)
     # args   -> params
     def visit_Args(self, parent, node): # parent = funcCall, node = args
+        print(self.global_)
         fun_parent = self.call_stack[-2] # ime funkcije
         impl = self.global_[fun_parent] # iz globalniog scope-a uzimam funkciju sa tim nazivom
         self.search_new_call = False
         args = [self.visit(impl.block, a) for a in node.args]
         args = [a.value if isinstance(a, Symbol) else a for a in args]
         fun_child = self.call_stack[-1]
+        print(fun_child)
         impl = self.global_[fun_child]
         scope = id(impl.block)
-        self.scope[fun_child].append(scope)
+        self.scope.append(scope)
         self.search_new_call = True
         for p, a in zip(impl.params.params, args):
-            id_ = self.visit(impl.block, p.id_)
+            print(impl.params.params, args) # todo izvuci iz dict values vrv (impl.params.params.values())
+                id_ = self.visit(impl.block, p.id_)
             id_.value = a
         self.scope[fun_child].pop()
 
