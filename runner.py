@@ -5,6 +5,9 @@ from class_ import Class
 from astComponents import *
 import re
 
+
+# todo 4, 5, 7
+
 # cita ast 
 class Runner(Visitor):
     def __init__(self, ast):
@@ -16,7 +19,7 @@ class Runner(Visitor):
         self.search_new_call = True # ako je rekurzivni poziv #? main() -> fib(5) -> fib(4)
         self.return_ = False                                             # false    true
     
-    # call_stack = ['main', 'fib', 'print', 'fib'] #? ako se neki poziv nalazi vec u steku onda je rekurzija
+    # call_stack = ['12435125153', 'fib', 'print', 'fib'] #? ako se neki poziv nalazi vec u steku onda je rekurzija
     # main() -> fib(5) -> print() -> fib(4) 
 
     
@@ -37,8 +40,8 @@ class Runner(Visitor):
         ref_scope = -2 if recursion and not self.search_new_call else -1 # ako jeste rekurzija i search_new_call=false
         id_ = node.value # ime simbola
         if len(self.call_stack) > 0:
-            fun = self.call_stack[ref_call]
-            for scope in reversed(self.scope[fun]): # za svaki scope u steku
+            #fun = self.call_stack[ref_call]
+            for scope in reversed(self.scope): # za svaki scope u steku
                 if scope in self.local:  
                     curr_scope = self.local[scope][ref_scope] # trenutni scope
                     if id_ in curr_scope: # da li se u tom scope-u nalazi simbol
@@ -180,6 +183,8 @@ class Runner(Visitor):
         id_ = self.get_symbol(node.id_) # mapira se cvor na simbol
         id_.params = node.params
         id_.block = node.block
+        
+        
         # if node.id_.value == 'main': # ako je main odmah i izvrsavamo (glavni begin u Pascalu #!MainBlock)
         #     self.call_stack.append(node.id_.value)
         #     self.init_scope(node.block) 
@@ -187,6 +192,10 @@ class Runner(Visitor):
         #     self.clear_scope(node.block)
         #     self.call_stack.pop()
 
+    def visit_ProcImpl(self, parent, node):
+        id_ = self.get_symbol(node.id_) # mapira se cvor na simbol
+        id_.params = node.params
+        id_.block = node.block
 
     # int fib(int n, int ,) { #? Symbol('fib', 'int', id(program), params=[n, m], block{...})
     #     ...
@@ -315,10 +324,8 @@ class Runner(Visitor):
     def visit_Block(self, parent, node):
         result = None # rezultat koji vracam iz bloka
         scope = id(node) # pravim blok
-        fun = self.call_stack[-1]
-        self.scope[fun].append(scope)
-        if len(self.local[scope]) > 5: # provera beskonacne rekurzije
-            exit(0)
+        fun = self.call_stack[-1] # trenutna funckija
+        self.scope.append(scope)
         for n in node.nodes:
             if self.return_: # ako bude return prekida se blok
                 break
@@ -332,7 +339,7 @@ class Runner(Visitor):
                     result = self.visit(n, n.expr) # vracam expr uz exit
             else:
                 self.visit(node, n) # posecujem instrukcije u bloku
-        self.scope[fun].pop() # skidam sa steka
+        self.scope.pop() # skidam sa steka
         return result 
        
 
@@ -341,6 +348,8 @@ class Runner(Visitor):
         scope = id(node) # pravim blok (main funkcija)
         #fun = self.call_stack[-1]
         self.scope.append(scope)
+        self.call_stack.append(scope)
+        self.init_scope(node) 
         # if len(self.local[scope]) > 5: # provera beskonacne rekurzije
         #     exit(0)
         for n in node.nodes:
@@ -356,7 +365,9 @@ class Runner(Visitor):
                     result = self.visit(n, n.expr) # vracam expr uz exit
             else:
                 self.visit(node, n) # posecujem instrukcije u bloku
+        self.clear_scope(node)
         self.scope.pop() # skidam sa steka
+        self.call_stack.pop()
         return result       
     
     def visit_MainVarBlock(self, parent, node):
