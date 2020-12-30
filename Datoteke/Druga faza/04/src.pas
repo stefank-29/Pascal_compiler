@@ -1,6 +1,6 @@
 procedure check_arm(x, cj, cd, cs: integer);
 	var
-		arm: boolean;
+		
 
 	begin
 		if x < 0 then
@@ -8,9 +8,9 @@ procedure check_arm(x, cj, cd, cs: integer);
 			exit;
 		end;
 
-		arm := x = cj * cj * cj + cd * cd * cd + cs * cs * cs;
-
-		if arm then
+		a := x = cj * cj * cj + cd * cd * cd + cs * cs * cs;
+		write(a);
+		if a then
 		begin
 			write('DA');
 		end
@@ -22,7 +22,7 @@ procedure check_arm(x, cj, cd, cs: integer);
 
 var
 	broj, cj, cd, cs: integer;
-
+	a: boolean;
 begin
 	readln(broj);
 

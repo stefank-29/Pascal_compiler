@@ -14,7 +14,7 @@ class Runner(Visitor):
         self.ast = ast
         self.global_ = {} # globalni scope
         self.local = {} # mapa stekova tabela simbola
-        self.scope = []
+        self.scope = [] # pamti hasheve svih aktivnih blokova
         self.call_stack = [] # stek naziva funkcija koje poziva #? sluzi za detekciju rekurzije
         self.search_new_call = True # ako je rekurzivni poziv #? main() -> fib(5) -> fib(4)
         self.return_ = False                                             # false    true
@@ -40,9 +40,8 @@ class Runner(Visitor):
         ref_scope = -2 if recursion and not self.search_new_call else -1 # ako jeste rekurzija i search_new_call=false
         id_ = node.value # ime simbola
         if len(self.call_stack) > 0:
-            #fun = self.call_stack[ref_call]
             for scope in reversed(self.scope): # za svaki scope u steku
-                if scope in self.local:  
+                if scope in self.local: 
                     curr_scope = self.local[scope][ref_scope] # trenutni scope
                     if id_ in curr_scope: # da li se u tom scope-u nalazi simbol
                         return curr_scope[id_] # -> Symbol('y', 'int', 'if', value=5)
@@ -142,13 +141,18 @@ class Runner(Visitor):
         value = self.visit(node, node.expr) # vrednost izraza sa desne strane
         if isinstance(value, Symbol): # ako je sa desne strane promenljiva uzmem njenu vrednost (x = y)
             value = value.value
-        id_.value = value 
+        id_.value = value
         return id_
 
  
     # scope = id(node) -> id nekog cvora(bloka)
     def visit_If(self, parent, node):
-        cond = self.visit(node, node.cond) # unarna ili binarna ili id (cond ima vrednost True ili False)
+        #cond = self.visit(node, node.cond) # unarna ili binarna ili id (cond ima vrednost True ili False)
+        cond = self.visit(node, node.cond)
+        try:
+            cond = cond.value # zbog 4 zad
+        except:
+            pass
         if cond: # cond == True
             self.init_scope(node.true) # dodaje scope na stek
             self.visit(node, node.true)
@@ -199,9 +203,11 @@ class Runner(Visitor):
                 break
 
     def visit_FuncImpl(self, parent, node):
-        id_ = self.get_symbol(node.id_) # mapira se cvor na simbol
-        id_.params = node.params
+        id_ = self.get_symbol(node.id_) # uzme se simbol funckije
+        id_.params = node.params # dodaju se blokoci
         id_.block = node.block
+        id_.declBlock = self.visit(node, node.declBlock)
+
         
         
         # if node.id_.value == 'main': # ako je main odmah i izvrsavamo (glavni begin u Pascalu #!MainBlock)
@@ -213,8 +219,11 @@ class Runner(Visitor):
 
     def visit_ProcImpl(self, parent, node):
         id_ = self.get_symbol(node.id_) # mapira se cvor na simbol
+        self.visit(node, node.declBlock)
+        id_.declBlock = node.declBlock
         id_.params = node.params
         id_.block = node.block
+        # self.local[id(node)][0] = {}
 
     # int fib(int n, int ,) { #? Symbol('fib', 'int', id(program), params=[n, m], block{...})
     #     ...
@@ -329,6 +338,8 @@ class Runner(Visitor):
             return chr(value)
         else:
             impl = self.global_[func] # uzima se funkcija iz globalnog scope-a (Symbol(naziv, tip, scope, parametri, blok))
+            print(f'blokcina {impl.declBlock}') #todo dodati declaracije u local
+            
             self.call_stack.append(func) # stavimo naziv u call stack 
             self.init_scope(impl.block) # doda se blok na call_stack (scope)
             self.visit(node, node.args) # mapiraju se argumenti na parametre
@@ -344,6 +355,8 @@ class Runner(Visitor):
         scope = id(node) # pravim blok
         fun = self.call_stack[-1] # trenutna funckija
         self.scope.append(scope)
+        if len(self.local[scope]) > 5: # koliko imam aktivnih poziva funkcije
+            exit(0)
         for n in node.nodes:
             if self.return_: # ako bude return prekida se blok
                 break
@@ -390,10 +403,42 @@ class Runner(Visitor):
         self.scope.pop() # skidam sa steka
         self.call_stack.pop()
         return result       
+
+    def visit_FuncBlock(self, parent, node):
+        result = None # rezultat koji vracam iz bloka
+        scope = id(node) # pravim blok
+        fun = self.call_stack[-1] # trenutna funckija
+        print(fun)
+        self.scope.append(scope)
+        for n in node.nodes:
+            if self.return_: # ako bude return prekida se blok
+                break
+            if isinstance(n, Break):
+                break
+            elif isinstance(n, Continue):
+                continue
+            elif isinstance(n, Exit):
+                self.return_ = True # vracam se iz funkcije (globalni flag)
+                if n.expr is not None:
+                    result = self.visit(n, n.expr) # vracam expr uz exit
+            else:
+                self.visit(node, n) # posecujem instrukcije u bloku
+        self.scope.pop() # skidam sa steka
+        return result 
+
     
     def visit_MainVarBlock(self, parent, node):
-        for symb in node.symbols: # dodam simbole u globalni scope
-            self.global_[symb.id_] = symb.copy()
+        # for symb in node.symbols: # dodam simbole u globalni scope
+        #     self.global_[symb.id_] = symb.copy()
+        for decl in node.nodes: # obidjem declaracije
+            self.visit(node, decl)
+    
+    #todo tek kad se pozove proc da dodam u mapu
+    def visit_VarBlock(self, parent, node):
+        print(f'parent: {id(parent)}') # ne proc impl nego func call
+        # for symb in node.symbols: # dodam simbole u globalni scope
+        #     self.global_[symb.id_] = symb.copy()
+        #     # self.local[id(parent)][0][symb.id_] = symb.copy()
         for decl in node.nodes: # obidjem declaracije
             self.visit(node, decl)
                                     
@@ -408,24 +453,25 @@ class Runner(Visitor):
     # parent -> child
     # fib(5) -> fib(4)
     # args   -> params
+    #? impl (id_, type_, params, block)
     def visit_Args(self, parent, node): # parent = funcCall, node = args
-        print(self.global_)
         fun_parent = self.call_stack[-2] # ime funkcije
-        impl = self.global_[fun_parent] # iz globalniog scope-a uzimam funkciju sa tim nazivom
+        impl = self.global_[fun_parent] # iz globalniog scope-a uzimam funkciju sa tim nazivom (symbol)
         self.search_new_call = False
         args = [self.visit(impl.block, a) for a in node.args]
         args = [a.value if isinstance(a, Symbol) else a for a in args]
         fun_child = self.call_stack[-1]
-        print(fun_child)
         impl = self.global_[fun_child]
         scope = id(impl.block)
         self.scope.append(scope)
         self.search_new_call = True
-        for p, a in zip(impl.params.params, args):
-            print(impl.params.params, args) # todo izvuci iz dict values vrv (impl.params.params.values())
-                id_ = self.visit(impl.block, p.id_)
+        type_ = list(impl.params.params.keys())[0]
+        params = list(impl.params.params.values())
+        for p, a in zip(params[0], args):    
+            id_ = Symbol(p.value, type_.value, scope)
             id_.value = a
-        self.scope[fun_child].pop()
+            self.local[scope][0][id_.id_] = id_
+        self.scope.pop()   #  self.scope[fun_child].pop()
 
 
     def visit_Elems(self, parent, node):
@@ -554,7 +600,7 @@ class Runner(Visitor):
         elif node.symbol == 'mod':
             return self.convert(first) % self.convert(second)
         elif node.symbol == '=':
-            return first == second # ovde mozda treba isto convert
+            return self.convert(first) == self.convert(second) # ovde mozda treba isto convert
         elif node.symbol == '<>':
             return first != second
         elif node.symbol == '<':
