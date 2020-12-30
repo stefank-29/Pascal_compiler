@@ -134,13 +134,15 @@ class Symbolizer(Visitor):
     def visit_FuncImpl(self, parent, node):
         parent.symbols.put(node.id_.value, node.type_.value, id(parent)) # dodaje se u globalnu tabelu simbola
         self.visit(node, node.block) # obidje se blok
-        self.visit(node, node.declBlock)
+        if node.declBlock is not None:
+            self.visit(node, node.declBlock)
         self.visit(node, node.params) # cuvaju se parametri u posebnoj tabeli simbola
 
     def visit_ProcImpl(self, parent, node):
         parent.symbols.put(node.id_.value, 'void', id(parent)) # dodaje se u globalnu tabelu simbola
         self.visit(node, node.block) # obidje se blok
-        self.visit(node, node.declBlock)
+        if node.declBlock is not None:
+            self.visit(node, node.declBlock)
         self.visit(node, node.params) # cuvaju se parametri u posebnoj tabeli simbola
 
     def visit_FuncCall(self, parent, node):

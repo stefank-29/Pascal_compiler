@@ -206,7 +206,8 @@ class Runner(Visitor):
         id_ = self.get_symbol(node.id_) # uzme se simbol funckije
         id_.params = node.params # dodaju se blokoci
         id_.block = node.block
-        id_.declBlock = self.visit(node, node.declBlock)
+        if node.declBlock is not None:
+            id_.declBlock = node.declBlock
 
         
         
@@ -219,8 +220,8 @@ class Runner(Visitor):
 
     def visit_ProcImpl(self, parent, node):
         id_ = self.get_symbol(node.id_) # mapira se cvor na simbol
-        self.visit(node, node.declBlock)
-        id_.declBlock = node.declBlock
+        if node.declBlock is not None:
+            id_.declBlock = node.declBlock
         id_.params = node.params
         id_.block = node.block
         # self.local[id(node)][0] = {}
@@ -338,7 +339,7 @@ class Runner(Visitor):
             return chr(value)
         else:
             impl = self.global_[func] # uzima se funkcija iz globalnog scope-a (Symbol(naziv, tip, scope, parametri, blok))
-            print(f'blokcina {impl.declBlock}') #todo dodati declaracije u local
+            #print(f'blokcina {impl.declBlock}') #todo dodati declaracije u local
             
             self.call_stack.append(func) # stavimo naziv u call stack 
             self.init_scope(impl.block) # doda se blok na call_stack (scope)
@@ -428,8 +429,8 @@ class Runner(Visitor):
 
     
     def visit_MainVarBlock(self, parent, node):
-        # for symb in node.symbols: # dodam simbole u globalni scope
-        #     self.global_[symb.id_] = symb.copy()
+        for symb in node.symbols: # dodam simbole u globalni scope
+            self.global_[symb.id_] = symb.copy()
         for decl in node.nodes: # obidjem declaracije
             self.visit(node, decl)
     

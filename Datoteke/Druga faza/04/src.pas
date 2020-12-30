@@ -1,6 +1,6 @@
 procedure check_arm(x, cj, cd, cs: integer);
 	var
-		
+		arm: boolean;
 
 	begin
 		if x < 0 then
@@ -8,9 +8,9 @@ procedure check_arm(x, cj, cd, cs: integer);
 			exit;
 		end;
 
-		a := x = cj * cj * cj + cd * cd * cd + cs * cs * cs;
-		write(a);
-		if a then
+		arm := x = cj * cj * cj + cd * cd * cd + cs * cs * cs;
+		write(arm);
+		if arm then
 		begin
 			write('DA');
 		end
