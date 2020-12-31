@@ -9,7 +9,7 @@ procedure check_arm(x, cj, cd, cs: integer);
 		end;
 
 		arm := x = cj * cj * cj + cd * cd * cd + cs * cs * cs;
-		write(arm);
+
 		if arm then
 		begin
 			write('DA');
@@ -22,7 +22,7 @@ procedure check_arm(x, cj, cd, cs: integer);
 
 var
 	broj, cj, cd, cs: integer;
-	a: boolean;
+
 begin
 	readln(broj);
 

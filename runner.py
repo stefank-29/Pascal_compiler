@@ -5,10 +5,9 @@ from class_ import Class
 from astComponents import *
 import re
 
+#todo 8, ... , 15
 
-# todo 4
-
-# cita ast 
+# cita ast
 class Runner(Visitor):
     def __init__(self, ast):
         self.ast = ast
@@ -18,16 +17,16 @@ class Runner(Visitor):
         self.call_stack = [] # stek naziva funkcija koje poziva #? sluzi za detekciju rekurzije
         self.search_new_call = True # ako je rekurzivni poziv #? main() -> fib(5) -> fib(4)
         self.return_ = False                                             # false    true
-    
-    # call_stack = ['12435125153', 'fib', 'print', 'fib'] #? ako se neki poziv nalazi vec u steku onda je rekurzija
-    # main() -> fib(5) -> print() -> fib(4) 
 
-    
+    # call_stack = ['12435125153', 'fib', 'print', 'fib'] #? ako se neki poziv nalazi vec u steku onda je rekurzija
+    # main() -> fib(5) -> print() -> fib(4)
+
+
     #  ?scope=1 (scope = id(program)) # 12435125153
     #  int main(){ #?scope=2 (scope = id(main))
-    #     char x = 'a'; 
+    #     char x = 'a';
     #     if(...){ #? scope=3 (scope = id(if))
-    #         int y = 5; 
+    #         int y = 5;
     #     }
 
     #     x = x + 1;
@@ -41,13 +40,13 @@ class Runner(Visitor):
         id_ = node.value # ime simbola
         if len(self.call_stack) > 0:
             for scope in reversed(self.scope): # za svaki scope u steku
-                if scope in self.local: 
+                if scope in self.local:
                     curr_scope = self.local[scope][ref_scope] # trenutni scope
                     if id_ in curr_scope: # da li se u tom scope-u nalazi simbol
                         return curr_scope[id_] # -> Symbol('y', 'int', 'if', value=5)
         return self.global_[id_] # ako u celom steku nema simbola onda je u globalnom scope-u
 
-    
+
 
     # self.local = {
     #     7651623113: [{
@@ -60,15 +59,15 @@ class Runner(Visitor):
         if scope not in self.local: # ako ga nema u globalnoj tabeli doda se sa praznim nizom tabela
             self.local[scope] = []
         self.local[scope].append({}) # doda se dict
-        for s in node.symbols: 
+        for s in node.symbols:
             self.local[scope][-1][s.id_] = s.copy() # dodaju se simboli u tabelu
 
-    def clear_scope(self, node): # izlazak iz bloka    
+    def clear_scope(self, node): # izlazak iz bloka
         scope = id(node)
         self.local[scope].pop() # skine se tabela iz steka
 
 
-    
+
 # int main() { ->#? Symbol('main', 'int', program)
 #       symbols = {'x': Symbol('x', 'char', main)}
 #     char x = 'a'; #? Symbol('x', 'char', main)
@@ -92,15 +91,15 @@ class Runner(Visitor):
     def visit_Program(self, parent, node):
         for s in node.symbols: # global je globalni scope
             self.global_[s.id_] = s.copy() # postavlja se simbol u globalni scope #? 'x' -> Symbol('x', ...)
-        for n in node.nodes: # obidji svaki node 
+        for n in node.nodes: # obidji svaki node
             self.visit(node, n)
 
-    def visit_Decl(self, parent, node): 
+    def visit_Decl(self, parent, node):
         for idd in node.ids:
             id_ = self.get_symbol(idd) # uzmem simbol za promenljivu i dodelim joj polje value
             id_.value = None
-            
-    def visit_stringDecl(self, parent, node): 
+
+    def visit_stringDecl(self, parent, node):
         for idd in node.ids:
             id_ = self.get_symbol(idd) # uzmem simbol za promenljivu i dodelim joj polje value
             id_.value = None
@@ -121,9 +120,9 @@ class Runner(Visitor):
         id_.symbols = node.symbols # dodeli se prazna hash mapa
         size, elems = node.size, node.elems
         if elems is not None: # int niz[] = {1, 2, 3, 4, 5};
-            self.visit(node, elems) 
+            self.visit(node, elems)
         elif size is not None: # int niz[5];
-            for i in range(size.value): 
+            for i in range(size.value):
                 id_.symbols.put(i, id_.type_, None) # prazni simboli
                 id_.symbols.get(i).value = None # vrednost je None
 
@@ -136,7 +135,7 @@ class Runner(Visitor):
     # niz[5] = 12;
     # x = y; #? hendlovano u if-u
     # x = y + 8; #? hendlovano u BinOp
-    def visit_Assign(self, parent, node): 
+    def visit_Assign(self, parent, node):
         id_ = self.visit(node, node.id_) # simbol leve strane
         value = self.visit(node, node.expr) # vrednost izraza sa desne strane
         if isinstance(value, Symbol): # ako je sa desne strane promenljiva uzmem njenu vrednost (x = y)
@@ -144,7 +143,7 @@ class Runner(Visitor):
         id_.value = value
         return id_
 
- 
+
     # scope = id(node) -> id nekog cvora(bloka)
     def visit_If(self, parent, node):
         #cond = self.visit(node, node.cond) # unarna ili binarna ili id (cond ima vrednost True ili False)
@@ -159,7 +158,7 @@ class Runner(Visitor):
             self.clear_scope(node.true) # skida scope sa steka
         else:
             if node.false is not None:
-                self.init_scope(node.false) 
+                self.init_scope(node.false)
                 self.visit(node, node.false)
                 self.clear_scope(node.false)
 
@@ -179,7 +178,7 @@ class Runner(Visitor):
         if isinstance(limit, Symbol):
             limit = limit.value
         #print(f'init: {init}, step: {step}, limit {limit}')
-        if step == -1: 
+        if step == -1:
             cond = init.value >= limit
         else:
             cond = init.value <= limit
@@ -188,7 +187,7 @@ class Runner(Visitor):
             self.visit(node, node.block)
             self.clear_scope(node.block)
             init.value += step
-            if step == -1: 
+            if step == -1:
                 cond = init.value >= limit
             else:
                 cond = init.value <= limit
@@ -209,11 +208,11 @@ class Runner(Visitor):
         if node.declBlock is not None:
             id_.declBlock = node.declBlock
 
-        
-        
+
+
         # if node.id_.value == 'main': # ako je main odmah i izvrsavamo (glavni begin u Pascalu #!MainBlock)
         #     self.call_stack.append(node.id_.value)
-        #     self.init_scope(node.block) 
+        #     self.init_scope(node.block)
         #     self.visit(node, node.block)
         #     self.clear_scope(node.block)
         #     self.call_stack.pop()
@@ -238,7 +237,7 @@ class Runner(Visitor):
             # format_ = format_.replace('\\n', '\n')
             format_ = ''
             idx = 0
-            while idx < len(args): 
+            while idx < len(args):
                 if (idx+1) < len(args) and isinstance(args[idx+1], str): # ako je round
                     idx += 1
                 if isinstance(args[idx], Integer):
@@ -283,7 +282,7 @@ class Runner(Visitor):
                     format_ += str(value)
                     idx += 1
             if func == 'write':
-                print(format_, end='') 
+                print(format_, end='')
             elif func == 'writeln':
                 print(format_, end='\n')
         elif func == 'read' or func == 'readln':
@@ -313,8 +312,8 @@ class Runner(Visitor):
             dest = self.get_symbol(a)
             values = []
             if isinstance(b, Id):
-                src = self.get_symbol(b) 
-                elems = [s.value for s in src.symbols] # kroz sve simbole u tabeli simbola 
+                src = self.get_symbol(b)
+                elems = [s.value for s in src.symbols] # kroz sve simbole u tabeli simbola
                 non_nulls = [c for c in elems if c is not None]
                 values = [c for c in non_nulls] # uzmem vrednosti drugog argumenta
             elif isinstance(b, String):
@@ -339,17 +338,18 @@ class Runner(Visitor):
             return chr(value)
         else:
             impl = self.global_[func] # uzima se funkcija iz globalnog scope-a (Symbol(naziv, tip, scope, parametri, blok))
-            #print(f'blokcina {impl.declBlock}') #todo dodati declaracije u local
-            
-            self.call_stack.append(func) # stavimo naziv u call stack 
+            #print(f'blokcina {impl.declBlock}') 
+            self.call_stack.append(func) # stavimo naziv u call stack
             self.init_scope(impl.block) # doda se blok na call_stack (scope)
+            if impl.declBlock is not None:
+                self.visit(node, impl.declBlock) # obidjem var block funkcije
             self.visit(node, node.args) # mapiraju se argumenti na parametre
             result = self.visit(node, impl.block) # izvrasavanje bloka (cuva se povratna vrednost)
             self.clear_scope(impl.block) # skida se scope sa steka
             self.call_stack.pop()
-            self.return_ = False 
+            self.return_ = False
             return result # vraca se vrednost #?(int x = 5 + fib(3))
-    
+
 
     def visit_Block(self, parent, node):
         result = None # rezultat koji vracam iz bloka
@@ -372,8 +372,8 @@ class Runner(Visitor):
             else:
                 self.visit(node, n) # posecujem instrukcije u bloku
         self.scope.pop() # skidam sa steka
-        return result 
-       
+        return result
+
 
     def visit_MainBlock(self, parent, node):
         result = None # rezultat koji vracam iz bloka
@@ -384,7 +384,7 @@ class Runner(Visitor):
         self.global_['main'] = main
         self.scope.append(scope)
         self.call_stack.append('main')
-        self.init_scope(node) 
+        self.init_scope(node)
         # if len(self.local[scope]) > 5: # provera beskonacne rekurzije
         #     exit(0)
         for n in node.nodes:
@@ -403,13 +403,12 @@ class Runner(Visitor):
         self.clear_scope(node)
         self.scope.pop() # skidam sa steka
         self.call_stack.pop()
-        return result       
+        return result
 
     def visit_FuncBlock(self, parent, node):
         result = None # rezultat koji vracam iz bloka
         scope = id(node) # pravim blok
         fun = self.call_stack[-1] # trenutna funckija
-        print(fun)
         self.scope.append(scope)
         for n in node.nodes:
             if self.return_: # ako bude return prekida se blok
@@ -425,24 +424,27 @@ class Runner(Visitor):
             else:
                 self.visit(node, n) # posecujem instrukcije u bloku
         self.scope.pop() # skidam sa steka
-        return result 
+        return result
 
-    
+
     def visit_MainVarBlock(self, parent, node):
         for symb in node.symbols: # dodam simbole u globalni scope
             self.global_[symb.id_] = symb.copy()
         for decl in node.nodes: # obidjem declaracije
             self.visit(node, decl)
-    
-    #todo tek kad se pozove proc da dodam u mapu
+
+  
     def visit_VarBlock(self, parent, node):
-        print(f'parent: {id(parent)}') # ne proc impl nego func call
-        # for symb in node.symbols: # dodam simbole u globalni scope
-        #     self.global_[symb.id_] = symb.copy()
-        #     # self.local[id(parent)][0][symb.id_] = symb.copy()
-        for decl in node.nodes: # obidjem declaracije
-            self.visit(node, decl)
-                                    
+        #print(f'parent: {id(parent)}') # ne proc impl nego func call
+        fun_parent = self.call_stack[-1] # ime funkcije
+        impl = self.global_[fun_parent]
+        scope = id(impl.block)
+        for symb in node.symbols: # dodam simbole u scope funkcije
+            self.local[scope][0][symb.id_] = symb.copy()
+
+        # for decl in node.nodes: # obidjem declaracije
+        #     self.visit(node, decl)
+
 
     def visit_Params(self, parent, node): # nizovi deklaracija(obisli u symbolizeru)
         pass
@@ -468,7 +470,7 @@ class Runner(Visitor):
         self.search_new_call = True
         type_ = list(impl.params.params.keys())[0]
         params = list(impl.params.params.values())
-        for p, a in zip(params[0], args):    
+        for p, a in zip(params[0], args):
             id_ = Symbol(p.value, type_.value, scope)
             id_.value = a
             self.local[scope][0][id_.id_] = id_
@@ -476,7 +478,7 @@ class Runner(Visitor):
 
 
     def visit_Elems(self, parent, node):
-        id_ = self.get_symbol(parent.id_) # symbol niza koji ima hash mapu symbols 
+        id_ = self.get_symbol(parent.id_) # symbol niza koji ima hash mapu symbols
         for i, e in enumerate(node.elems): # punim hash mapu (index: vrednost)
             value = self.visit(node, e)
             id_.symbols.put(i, id_.type_, None) # doda se Symbol bez vrednosti
@@ -496,7 +498,7 @@ class Runner(Visitor):
 
     def visit_Integer(self, parent, node):
         return int(node.value)
-    
+
     def visit_Real(self, parent, node):
         return float(node.value)
 
@@ -509,7 +511,7 @@ class Runner(Visitor):
     def visit_String(self, parent, node):
         return node.value
 
-    def visit_Id(self, parent, node): # vraca simbol 
+    def visit_Id(self, parent, node): # vraca simbol
         return self.get_symbol(node)
 
     #todo napraviti wraper koji vraca int ili float zavisno od tipa
@@ -557,11 +559,11 @@ class Runner(Visitor):
             bool_second = second #* != 0
             return bool_first and bool_second
         elif node.symbol == 'or':
-            bool_first = first 
+            bool_first = first
             bool_second = second
             return bool_first or bool_second
         elif node.symbol == 'xor':
-            bool_first = first 
+            bool_first = first
             bool_second = second
             return bool_first and not bool_second or not bool_first and bool_second
         else:
@@ -617,11 +619,11 @@ class Runner(Visitor):
             bool_second = second #* != 0
             return bool_first and bool_second
         elif node.symbol == 'or':
-            bool_first = first 
+            bool_first = first
             bool_second = second
             return bool_first or bool_second
         elif node.symbol == 'xor':
-            bool_first = first 
+            bool_first = first
             bool_second = second
             return bool_first and not bool_second or not bool_first and bool_second
         else:
