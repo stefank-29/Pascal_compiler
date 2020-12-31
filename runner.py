@@ -5,7 +5,7 @@ from class_ import Class
 from astComponents import *
 import re
 
-#todo 8, ... , 15
+#todo 8, 9, 13, 14, 15
 
 # cita ast
 class Runner(Visitor):
@@ -116,20 +116,22 @@ class Runner(Visitor):
     def visit_ArrayDecl(self, parent, node):
         # int niz[] = {1, 2, 3, 4, 5};
         # int niz[5];
-        id_ = self.get_symbol(node.id_) # uzme se simbol tog niza
-        id_.symbols = node.symbols # dodeli se prazna hash mapa
-        size, elems = node.size, node.elems
-        if elems is not None: # int niz[] = {1, 2, 3, 4, 5};
-            self.visit(node, elems)
-        elif size is not None: # int niz[5];
-            for i in range(size.value):
-                id_.symbols.put(i, id_.type_, None) # prazni simboli
-                id_.symbols.get(i).value = None # vrednost je None
+        size_ = int(node.high.value) - int(node.low.value) + 1
+        for idd in node.ids:
+            id_ = self.get_symbol(idd) # uzme se simbol tog niza
+            id_.symbols = idd.symbols # dodeli se prazna hash mapa
+            size, elems = size_, node.elems
+            if elems is not None: # int niz[] = {1, 2, 3, 4, 5};
+                self.visit(node, elems)
+            elif size is not None: # int niz[5];
+                for i in range(size):
+                    id_.symbols.put(i, id_.type_, None) # prazni simboli
+                    id_.symbols.get(i).value = None # vrednost je None
 
     def visit_ArrayElem(self, parent, node):
         id_ = self.get_symbol(node.id_) # simbol niza
         index = self.visit(node, node.index) # izracuna se index (ako imam niz[4*3])
-        return id_.symbols.get(index.value) # mapa od indexa 12
+        return id_.symbols.get(index.value - 1) # mapa od indexa 12
 
 
     # niz[5] = 12;
@@ -145,6 +147,7 @@ class Runner(Visitor):
 
 
     # scope = id(node) -> id nekog cvora(bloka)
+    #todo proveriti za if (true)
     def visit_If(self, parent, node):
         #cond = self.visit(node, node.cond) # unarna ili binarna ili id (cond ima vrednost True ili False)
         cond = self.visit(node, node.cond)
@@ -154,7 +157,7 @@ class Runner(Visitor):
             pass
         if cond: # cond == True
             self.init_scope(node.true) # dodaje scope na stek
-            self.visit(node, node.true)
+            res = self.visit(node, node.true)
             self.clear_scope(node.true) # skida scope sa steka
         else:
             if node.false is not None:
@@ -196,9 +199,12 @@ class Runner(Visitor):
         cond = self.visit(node, node.cond)
         while True:
             self.init_scope(node.block)
-            self.visit(node, node.block)
+            result =self.visit(node, node.block)
             self.clear_scope(node.block)
-            if cond:
+            cond = self.visit(node, node.cond)
+            
+            # print(cond)
+            if cond or result == 'break':
                 break
 
     def visit_FuncImpl(self, parent, node):
@@ -341,8 +347,11 @@ class Runner(Visitor):
             #print(f'blokcina {impl.declBlock}') 
             self.call_stack.append(func) # stavimo naziv u call stack
             self.init_scope(impl.block) # doda se blok na call_stack (scope)
-            if impl.declBlock is not None:
-                self.visit(node, impl.declBlock) # obidjem var block funkcije
+            try:
+                if impl.declBlock is not None:
+                    self.visit(node, impl.declBlock) # obidjem var block funkcije
+            except:
+                pass
             self.visit(node, node.args) # mapiraju se argumenti na parametre
             result = self.visit(node, impl.block) # izvrasavanje bloka (cuva se povratna vrednost)
             self.clear_scope(impl.block) # skida se scope sa steka
@@ -362,6 +371,7 @@ class Runner(Visitor):
             if self.return_: # ako bude return prekida se blok
                 break
             if isinstance(n, Break):
+                result = 'break'
                 break
             elif isinstance(n, Continue):
                 continue
@@ -405,6 +415,7 @@ class Runner(Visitor):
         self.call_stack.pop()
         return result
 
+
     def visit_FuncBlock(self, parent, node):
         result = None # rezultat koji vracam iz bloka
         scope = id(node) # pravim blok
@@ -423,6 +434,36 @@ class Runner(Visitor):
                     result = self.visit(n, n.expr) # vracam expr uz exit
             else:
                 self.visit(node, n) # posecujem instrukcije u bloku
+        self.scope.pop() # skidam sa steka
+        return result
+
+    def visit_RepeatBlock(self, parent, node):
+        result = None # rezultat koji vracam iz bloka
+        scope = id(node) # pravim blok
+        fun = self.call_stack[-1] # trenutna funckija
+        self.scope.append(scope)
+        if len(self.local[scope]) > 5: # koliko imam aktivnih poziva funkcije
+            exit(0)
+        for n in node.nodes:
+            print(n)
+            if self.return_: # ako bude return prekida se blok
+                break
+            if isinstance(n, Break):
+                result = 'break'
+                break
+            elif isinstance(n, Continue):
+                continue
+            elif isinstance(n, Exit):
+                self.return_ = True # vracam se iz funkcije (globalni flag)
+                if n.expr is not None:
+                    result = self.visit(n, n.expr) # vracam expr uz exit
+            else:
+                res = self.visit(node, n) # posecujem instrukcije u bloku
+                # try:
+                #     print(res.value)
+                # except:
+                #     pass
+        print('zavrsio se ru')
         self.scope.pop() # skidam sa steka
         return result
 
@@ -503,7 +544,11 @@ class Runner(Visitor):
         return float(node.value)
 
     def visit_Boolean(self, parent, node):
-        return bool(node.value)
+        if node.value == 'true':
+            return True
+        elif node.value == 'false':
+            return False
+        #return bool(node.value)
 
     def visit_Char(self, parent, node):
         return node.value    # ord(node.value) #?vrv bez ord

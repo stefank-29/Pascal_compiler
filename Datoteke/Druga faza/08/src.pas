@@ -38,7 +38,7 @@ begin
 				break;
 			end;
 		end;
-		
+		break;
 		s := s + 1;
 	until false;
 

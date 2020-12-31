@@ -4,7 +4,7 @@ from generator import Generator
 from symbolizer import Symbolizer
 from runner import Runner
 #from grapher import *
-id = '04'
+id = '12'
 path = f'./Datoteke/Druga faza/{id}/src.pas'
 with open(path, 'r') as source:
     text = source.read()
