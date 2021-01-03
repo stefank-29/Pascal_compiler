@@ -88,6 +88,7 @@ class Symbolizer(Visitor):
         
     def visit_stringDecl(self, parent, node): 
         for n in node.ids:
+            n.symbols = Symbols() 
             parent.symbols.put(n.value, node.type_.value, id(parent))
     
     # int niz = {1, 2, 3}

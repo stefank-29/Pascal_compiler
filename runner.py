@@ -6,10 +6,8 @@ from astComponents import *
 import re
 import sys
 
-#todo read
-#todo globalni za break 
 
-#todo 8, 9, 15
+#todo= 9, 15
 
 # cita ast
 class Runner(Visitor):
@@ -22,6 +20,7 @@ class Runner(Visitor):
         self.search_new_call = True # ako je rekurzivni poziv #? main() -> fib(5) -> fib(4)
         self.return_ = False                                             # false    true
         self.break_ = False
+        self.returnValue = ''
 
     # call_stack = ['12435125153', 'fib', 'print', 'fib'] #? ako se neki poziv nalazi vec u steku onda je rekurzija
     # main() -> fib(5) -> print() -> fib(4)
@@ -138,6 +137,10 @@ class Runner(Visitor):
                 id_.symbols = idd.symbols
             except:
                 pass
+            size = node.lenght.value
+            for i in range(size):
+                id_.symbols.put(i, 'char', None) # prazni simboli
+                id_.symbols.get(i).value = None
 
 
     def visit_ArrayElem(self, parent, node):
@@ -145,7 +148,8 @@ class Runner(Visitor):
         index = self.visit(node, node.index) # izracuna se index (ako imam niz[4*3])
         if isinstance(index, Symbol):
             index = index.value
-        return id_.symbols.get(index - 1) # mapa od indexa 12
+        return id_.symbols.get(index - 1) # mapa od indexa 
+        
 
 
     # niz[5] = 12;
@@ -161,14 +165,14 @@ class Runner(Visitor):
 
 
     # scope = id(node) -> id nekog cvora(bloka)
-    #todo proveriti za if (true)
     def visit_If(self, parent, node):
         #cond = self.visit(node, node.cond) # unarna ili binarna ili id (cond ima vrednost True ili False)
         cond = self.visit(node, node.cond)
         try:
-            cond = cond.value # zbog 4 zad
+            cond = cond.value 
         except:
             pass
+        
         if cond: # cond == True
             self.init_scope(node.true) # dodaje scope na stek
             res = self.visit(node, node.true)
@@ -254,8 +258,6 @@ class Runner(Visitor):
         func = node.id_.value
         args = node.args.args
         if func == 'write' or func == 'writeln':
-            # format_ = args[0].value
-            # format_ = format_.replace('\\n', '\n')
             format_ = ''
             idx = 0
             while idx < len(args):
@@ -309,7 +311,6 @@ class Runner(Visitor):
                 print(format_, end='\n')
         elif func == 'readln':
             inputs = input().split() # input cita do entera i splituje po space-u
-            #matches = re.findall('%[dcs]', format_)
             for i, m in enumerate(args):
                 id_ = self.visit(node.args, args[i])
                 if id_.type_ == 'integer':
@@ -321,7 +322,11 @@ class Runner(Visitor):
                 elif id_.type_ == 'char':
                     id_.value = inputs[i][0]
                 elif id_.type_ == 'string':
-                    id_.value = inputs[i]
+                    length = 0
+                    string = inputs[i]
+                    for c in string:
+                        id_.symbols.get(length).value = c
+                        length += 1                   
         elif func == 'read':
             #inputs = input().split() # input cita do entera i splituje po space-u
             inputs = ''
@@ -345,7 +350,11 @@ class Runner(Visitor):
                 elif id_.type_ == 'char':
                     id_.value = inputs
                 elif id_.type_ == 'string':
-                    id_.value = inputs
+                    length = 0
+                    string = inputs[i]
+                    for c in string:
+                        id_.symbols.get(length).value = c
+                        length += 1        
             # print(f'value: {id_.value}')
         elif func == 'length':
             a = args[0] # 1 argument
@@ -353,7 +362,7 @@ class Runner(Visitor):
                 return len(a.value)
             elif isinstance(a, Id): # ako je promenljiva tipa string
                 id_ = self.visit(node.args, a) # vraca simbol
-                return len(id_.value) # string je niz ascii vrednost (velicina niza simbola) #? ovako je za c
+                return len(id_.symbols) # string je niz ascii vrednost (velicina niza simbola) #? ovako je za c
         elif func == 'strcat':
             a, b = args[0], args[1]
             dest = self.get_symbol(a)
@@ -376,6 +385,21 @@ class Runner(Visitor):
             if isinstance(value, Symbol):
                 value = value.value # simbol
             return ord(value)
+        elif func == 'inc':
+            a = args[0]
+            num = self.get_symbol(a)
+            num.value += 1
+        elif func == 'dec':
+            a = args[0]
+            num = self.get_symbol(a)
+            num.value -= 1
+        elif func == 'insert':
+            char = self.visit(node.args,args[0])
+            if isinstance(char, Symbol):
+                char = char.value
+            arr = self.visit(node.args,args[1])
+            pos = self.visit(node.args,args[2])
+           
 
         elif func == 'chr':
             a = args[0]
@@ -410,6 +434,7 @@ class Runner(Visitor):
             exit(0)
         for n in node.nodes:
             if self.return_: # ako bude return prekida se blok
+                return self.returnValue
                 break
             if isinstance(n, Break):
                 result = 'break'
@@ -421,6 +446,7 @@ class Runner(Visitor):
                 self.return_ = True # vracam se iz funkcije (globalni flag)
                 if n.expr is not None:
                     result = self.visit(n, n.expr) # vracam expr uz exit
+                    self.returnValue = result
             else:
                 self.visit(node, n) # posecujem instrukcije u bloku
         self.scope.pop() # skidam sa steka
@@ -465,6 +491,7 @@ class Runner(Visitor):
         self.scope.append(scope)
         for n in node.nodes:
             if self.return_: # ako bude return prekida se blok
+                return self.returnValue
                 break
             if isinstance(n, Break):
                 self.break_ = True
@@ -478,6 +505,8 @@ class Runner(Visitor):
             else:
                 self.visit(node, n) # posecujem instrukcije u bloku
         self.scope.pop() # skidam sa steka
+        # if self.return_: # ako bude return prekida se blok
+        #     return self.returnValue
         return result
 
     def visit_RepeatBlock(self, parent, node):
@@ -603,7 +632,6 @@ class Runner(Visitor):
     def visit_Id(self, parent, node): # vraca simbol
         return self.get_symbol(node)
 
-    #todo napraviti wraper koji vraca int ili float zavisno od tipa
     def convert(self, value):
         if type(value) == int:
             return int(value)
