@@ -1,24 +1,30 @@
-int main() {
-	int niz[100];
-	int i, j, n, temp;
-	scanf("%d", &n);
-	for (i = 1; i <= n; i = i + 1) {
-		scanf("%d", &niz[i]);
+int jeProst(int n){ 
+	int i;
+	if (n <= 1) {
+		return 0;
 	}
-	for (i = 1; i <= n; i = i + 1) {
-		for (j = i + 1; j <= n; j = j + 1) {
-			if (niz[i] <= niz[j]) {
-				continue;
-			}
-			else  {
-				temp = niz[i];
-				niz[i] = niz[j];
-				niz[j] = temp;
-			}
+	for (i = n / 2; i >= 2; i = i - 1) {
+		if (n % i == 0) {
+			return 0;
 		}
 	}
-	for (i = 1; i <= n; i = i + 1) {
-		printf("%d ", niz[i]);
-	}
-	return 0;
+	return 1;
+}
+int main() {
+	int n, i, s;
+	scanf("%d", &n);
+	i = 0;
+	s = 1;
+	do {
+		if (jeProst(s)) {
+			i = i + 1;
+			if (i == n) {
+				break;
+			}
+		}
+		s = s + 1;
+	}
+ while (1);
+	printf("%d\n", s);
+	return 0;
 }

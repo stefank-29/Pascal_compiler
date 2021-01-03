@@ -21,6 +21,7 @@ class Runner(Visitor):
         self.call_stack = [] # stek naziva funkcija koje poziva #? sluzi za detekciju rekurzije
         self.search_new_call = True # ako je rekurzivni poziv #? main() -> fib(5) -> fib(4)
         self.return_ = False                                             # false    true
+        self.break_ = False
 
     # call_stack = ['12435125153', 'fib', 'print', 'fib'] #? ako se neki poziv nalazi vec u steku onda je rekurzija
     # main() -> fib(5) -> print() -> fib(4)
@@ -210,14 +211,15 @@ class Runner(Visitor):
 
     def visit_RepeatUntil(self, parent, node):
         cond = self.visit(node, node.cond)
-        while cond:
+        while True:
             self.init_scope(node.block)
             result =self.visit(node, node.block)
             self.clear_scope(node.block)
             cond = self.visit(node, node.cond)
             
             # print(cond)
-            if cond :
+            if cond or self.break_:
+                self.break_ = False
                 break
 
     def visit_FuncImpl(self, parent, node):
@@ -411,6 +413,7 @@ class Runner(Visitor):
                 break
             if isinstance(n, Break):
                 result = 'break'
+                self.break_ = True
                 break
             elif isinstance(n, Continue):
                 continue
@@ -464,6 +467,7 @@ class Runner(Visitor):
             if self.return_: # ako bude return prekida se blok
                 break
             if isinstance(n, Break):
+                self.break_ = True
                 break
             elif isinstance(n, Continue):
                 continue
@@ -484,10 +488,13 @@ class Runner(Visitor):
         if len(self.local[scope]) > 5: # koliko imam aktivnih poziva funkcije
             exit(0)
         for n in node.nodes:
+            if self.break_:
+                break
             if self.return_: # ako bude return prekida se blok
                 break
             if isinstance(n, Break):
                 result = 'break'
+                self.break_ = True
                 break
             elif isinstance(n, Continue):
                 continue
