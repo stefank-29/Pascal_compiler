@@ -1,4 +1,4 @@
-var
+5var
 	c: char;
     lo, hi: boolean;
     d: integer;

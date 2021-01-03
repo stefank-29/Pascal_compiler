@@ -4,8 +4,12 @@ from token import Token
 from class_ import Class
 from astComponents import *
 import re
+import sys
 
-#todo 8, 9, 13, 14, 15
+#todo read
+#todo globalni za break 
+
+#todo 8, 9, 15
 
 # cita ast
 class Runner(Visitor):
@@ -31,6 +35,7 @@ class Runner(Visitor):
 
     #     x = x + 1;
     # }
+    
 
     #? self.scope = [1, 2, 3] <<< sa desna na levo prolazim kroz blokove u kojima sam bio (trenutno sam u poslednjem) (nije tu globalni)
     def get_symbol(self, node): # Id(value= 'n')
@@ -99,11 +104,7 @@ class Runner(Visitor):
             id_ = self.get_symbol(idd) # uzmem simbol za promenljivu i dodelim joj polje value
             id_.value = None
 
-    def visit_stringDecl(self, parent, node):
-        for idd in node.ids:
-            id_ = self.get_symbol(idd) # uzmem simbol za promenljivu i dodelim joj polje value
-            id_.value = None
-
+   
 
     # int niz[] = {1, 2, 3, 4, 5} -> Symbol('niz', 'int', main)
     #              0  1  2  3  4
@@ -128,10 +129,22 @@ class Runner(Visitor):
                     id_.symbols.put(i, id_.type_, None) # prazni simboli
                     id_.symbols.get(i).value = None # vrednost je None
 
+    def visit_stringDecl(self, parent, node):
+        for idd in node.ids:
+            id_ = self.get_symbol(idd) # uzmem simbol za promenljivu i dodelim joj polje value
+            id_.value = None
+            try:
+                id_.symbols = idd.symbols
+            except:
+                pass
+
+
     def visit_ArrayElem(self, parent, node):
         id_ = self.get_symbol(node.id_) # simbol niza
         index = self.visit(node, node.index) # izracuna se index (ako imam niz[4*3])
-        return id_.symbols.get(index.value - 1) # mapa od indexa 12
+        if isinstance(index, Symbol):
+            index = index.value
+        return id_.symbols.get(index - 1) # mapa od indexa 12
 
 
     # niz[5] = 12;
@@ -197,14 +210,14 @@ class Runner(Visitor):
 
     def visit_RepeatUntil(self, parent, node):
         cond = self.visit(node, node.cond)
-        while True:
+        while cond:
             self.init_scope(node.block)
             result =self.visit(node, node.block)
             self.clear_scope(node.block)
             cond = self.visit(node, node.cond)
             
             # print(cond)
-            if cond or result == 'break':
+            if cond :
                 break
 
     def visit_FuncImpl(self, parent, node):
@@ -267,7 +280,8 @@ class Runner(Visitor):
                         valueToRound = float(valueToRound.value)
                     idx += 3
                     decimals = int(args[idx].value)
-                    format_ += str(round(valueToRound, decimals))
+                    value = round(valueToRound, decimals)
+                    format_ += str(format(value, '.2f'))
                     idx += 1
                 elif isinstance(args[idx], Id) or isinstance(args[idx], ArrayElem):
                     id_ = self.visit(node.args, args[idx])
@@ -291,7 +305,7 @@ class Runner(Visitor):
                 print(format_, end='')
             elif func == 'writeln':
                 print(format_, end='\n')
-        elif func == 'read' or func == 'readln':
+        elif func == 'readln':
             inputs = input().split() # input cita do entera i splituje po space-u
             #matches = re.findall('%[dcs]', format_)
             for i, m in enumerate(args):
@@ -306,13 +320,38 @@ class Runner(Visitor):
                     id_.value = inputs[i][0]
                 elif id_.type_ == 'string':
                     id_.value = inputs[i]
-        elif func == 'strlen':
+        elif func == 'read':
+            #inputs = input().split() # input cita do entera i splituje po space-u
+            inputs = ''
+            c = sys.stdin.read(1)
+            # print(c)
+            inputs += c
+            while c != ' ' :
+                c = sys.stdin.read(1)
+                if c == '\n':
+                    break
+                inputs+= c
+            # print(inputs)
+            for i, m in enumerate(args):
+                id_ = self.visit(node.args, args[i])
+                if id_.type_ == 'integer':
+                    id_.value = int(inputs)
+                elif id_.type_ == 'real':
+                    id_.value = float(inputs)
+                elif id_.type_ == 'boolean':
+                    id_.value = bool(inputs)
+                elif id_.type_ == 'char':
+                    id_.value = inputs
+                elif id_.type_ == 'string':
+                    id_.value = inputs
+            # print(f'value: {id_.value}')
+        elif func == 'length':
             a = args[0] # 1 argument
             if isinstance(a, String): # ako je string
                 return len(a.value)
             elif isinstance(a, Id): # ako je promenljiva tipa string
                 id_ = self.visit(node.args, a) # vraca simbol
-                return len(id_.symbols) # string je niz ascii vrednost (velicina niza simbola) #? ovako je za c
+                return len(id_.value) # string je niz ascii vrednost (velicina niza simbola) #? ovako je za c
         elif func == 'strcat':
             a, b = args[0], args[1]
             dest = self.get_symbol(a)
@@ -445,7 +484,6 @@ class Runner(Visitor):
         if len(self.local[scope]) > 5: # koliko imam aktivnih poziva funkcije
             exit(0)
         for n in node.nodes:
-            print(n)
             if self.return_: # ako bude return prekida se blok
                 break
             if isinstance(n, Break):
@@ -463,7 +501,6 @@ class Runner(Visitor):
                 #     print(res.value)
                 # except:
                 #     pass
-        print('zavrsio se ru')
         self.scope.pop() # skidam sa steka
         return result
 
@@ -580,7 +617,10 @@ class Runner(Visitor):
         elif node.symbol == '-':
             return self.convert(first) - self.convert(second)
         elif node.symbol == '*':
-            return self.convert(first) * self.convert(second)
+            try:
+                return self.convert(first) * self.convert(second)
+            except:
+                pass
         elif node.symbol == '/':
             return self.convert(first) / self.convert(second)
         elif node.symbol == 'div':
@@ -588,7 +628,7 @@ class Runner(Visitor):
         elif node.symbol == 'mod':
             return self.convert(first) % self.convert(second)
         elif node.symbol == '=':
-            return first == second # ovde mozda treba isto convert
+            return self.convert(first) == self.convert(second) # ovde mozda treba isto convert
         elif node.symbol == '<>':
             return first != second
         elif node.symbol == '<':
